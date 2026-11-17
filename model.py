@@ -128,8 +128,25 @@ def initialize_weights(in_dim, out_dim, scheme='he'):
 
     return W, b
 
-# Step 6 - make_loss (not yet solved)
-# TODO: implement
+# Step 6 - make_loss
+def make_loss(kind='cross_entropy'):
+    """Return a classification loss_fn(logits, labels) -> (loss, d_logits)."""
+    def loss_fn(logits, labels):
+        # apply softmax
+        N, C = logits.shape
+
+        shifted = logits - np.max(logits, axis=1, keepdims=True)
+        exp_z = np.exp(shifted)
+        prob = exp_z / np.sum(exp_z, axis=1, keepdims=True)
+
+        one_hot = np.eye(C)[labels]
+
+        loss = np.mean(np.log(np.sum(exp_z, axis=1))-shifted[np.arange(N), labels])
+        d_logits = (prob-one_hot)/N
+
+        return float(loss), d_logits
+
+    return loss_fn
 
 # Step 7 - make_sequential (not yet solved)
 # TODO: implement
