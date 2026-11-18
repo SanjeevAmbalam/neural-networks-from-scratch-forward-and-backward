@@ -306,8 +306,76 @@ def train(model, loss_fn, optimizer, x, y, epochs, batch_size, seed=0):
 
     return history
 
-# Step 12 - design_network (not yet solved)
-# TODO: implement
+# Step 12 - design_network
+def design_network(input_dim, num_classes, seed=0):
+    """Design and train a net that solves a nonlinear classification task.
+
+    Inputs:
+      input_dim: int, feature dimension
+      num_classes: int, number of classes
+      seed: int, RNG seed for reproducibility
+
+    Returns:
+      model: trained sequential model (forward/backward/params)
+      metrics: dict with
+        'accuracy': float >= 0.90 on an evaluation set,
+        'x': np.ndarray (N, input_dim) eval features (N >= 50),
+        'y': np.ndarray (N,) integer eval labels.
+      The eval set (x, y) must not be linearly separable to high accuracy
+      (< 0.82 for a linear classifier), and the model's true accuracy on
+      it must match metrics['accuracy'] and be >= 0.90.
+    """
+    # TODO: your approach here
+    if input_dim < 1 or num_classes < 2:
+        raise ValueError("Invalid dimensions")
+
+    rng = np.random.RandomState(seed)
+
+    def make_data(N):
+        labels = np.arange(N) % num_classes
+        rng.shuffle(labels)
+
+        signs = rng.choice([-1.0, 1.0], size=N)
+        radius = 1.0 + 1.5 * labels
+
+        x = rng.normal(0, 0.12, size=(N, input_dim))
+        x[:, 0] += signs * radius
+
+        return x, labels.astype(int)
+
+    x_train, y_train = make_data(768)
+    x_eval, y_eval = make_data(240)
+
+    def weight_init(in_dim, out_dim):
+        W = rng.randn(in_dim, out_dim) * np.sqrt(2 / in_dim)
+        b = np.zeros(out_dim)
+        return W, b
+
+    layers = [
+        make_dense(input_dim, 64, weight_init),
+        make_activation('relu'),
+        make_dense(64, 64, weight_init),
+        make_activation('relu'),
+        make_dense(64, num_classes, weight_init)
+    ]
+
+    model = make_sequential(layers)
+    loss_fn = make_loss('cross_entropy')
+    optimizer = make_optimizer(model['params'], lr=0.02)
+
+    history = train(model, loss_fn, optimizer,x_train, y_train, epochs=100, batch_size=32, seed=seed)
+
+    logits, caches = model['forward'](x_eval)
+    predictions = np.argmax(logits, axis=1)
+    accuracy = float(np.mean(predictions == y_eval))
+
+    metrics = {
+        'accuracy': accuracy,
+        'x': x_eval,
+        'y': y_eval
+    }
+
+    return model, metrics
 
 # Step 13 - improve_generalization (not yet solved)
 # TODO: implement
