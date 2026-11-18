@@ -369,12 +369,7 @@ def design_network(input_dim, num_classes, seed=0):
     predictions = np.argmax(logits, axis=1)
     accuracy = float(np.mean(predictions == y_eval))
 
-    metrics = {
-        'accuracy': accuracy,
-        'x': x_eval,
-        'y': y_eval
-    }
-
+    metrics = {'accuracy': accuracy, 'x': x_eval, 'y': y_eval}
     return model, metrics
 
 # Step 13 - improve_generalization (not yet solved)
