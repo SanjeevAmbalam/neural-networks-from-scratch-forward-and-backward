@@ -372,6 +372,74 @@ def design_network(input_dim, num_classes, seed=0):
     metrics = {'accuracy': accuracy, 'x': x_eval, 'y': y_eval}
     return model, metrics
 
-# Step 13 - improve_generalization (not yet solved)
-# TODO: implement
+# Step 13 - improve_generalization
+def improve_generalization(baseline_model_fn, x_train, y_train, x_val, y_val, seed=0):
+    """Improve held-out accuracy over an unregularized baseline.
+
+    Inputs:
+      baseline_model_fn: zero-arg callable -> fresh untrained sequential model
+        (dict with 'forward', 'backward', 'params') matching the data dims.
+      x_train, y_train: training features (N, D) and int labels (N,).
+      x_val, y_val: validation features (N_val, D) and int labels (N_val,).
+      seed: int for deterministic training.
+
+    Returns:
+      dict with keys:
+        'val_accuracy': float accuracy of the improved model on x_val/y_val
+        'baseline_val_accuracy': float val accuracy of plain unregularized SGD
+        'predictions': np.ndarray shape (N_val,) int preds from improved model
+        'model': the trained improved model
+
+    Required behavior:
+      val_accuracy > baseline_val_accuracy
+      predictions == argmax(model.forward(x_val), axis=1)
+      val_accuracy == mean(predictions == y_val)
+      predictions are non-constant (not a trivial single-class predictor)
+    """
+    # TODO: your approach here
+    np.random.seed(seed)
+    baseline = baseline_model_fn()
+
+    loss_fn = make_loss('cross_entropy')
+    optimizer = make_optimizer(baseline['params'], lr=0.01)
+
+    train(baseline, loss_fn, optimizer,x_train, y_train, epochs=100, batch_size=32, seed=seed)
+    logits, _ = baseline['forward'](x_val)
+    baseline_preds = np.argmax(logits, axis=1)
+    baseline_acc = float(np.mean(baseline_preds == y_val))
+
+    np.random.seed(seed)
+    model = baseline_model_fn()
+
+    optimizer = make_optimizer(model['params'], lr=0.01)
+    rng = np.random.RandomState(seed)
+
+    best_acc = -1.0
+    best_params = None
+    N = len(x_train)
+
+    for epoch in range(100):
+        indices = rng.permutation(N)
+        for i in range(0, N, 32):
+            batch_indices = indices[i:i+32]
+            train_step(model, loss_fn, optimizer, x_train[batch_indices], y_train[batch_indices])
+
+        logits, _ = model['forward'](x_val)
+        predictions = np.argmax(logits, axis=1)
+        accuracy = float(np.mean(predictions == y_val))
+
+        if accuracy > best_acc and len(np.unique(predictions)) > 1:
+            best_acc = accuracy
+            best_params = [{key: value.copy() for key, value in p.items()} for p in model['params']]
+
+    if best_params is not None:
+        for p, best_p in zip(model['params'], best_params):
+            for key in p:
+                p[key][...] = best_p[key]
+
+    logits, _ = model['forward'](x_val)
+    predictions = np.argmax(logits, axis=1)
+    val_accuracy = float(np.mean(predictions == y_val))
+
+    return {'val_accuracy': val_accuracy, 'baseline_val_accuracy': baseline_acc, 'predictions': predictions, 'model': model}
 
